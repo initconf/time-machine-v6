@@ -21,6 +21,7 @@
 //#include "Index.hh"
 class Indexes;
 
+void init_Hash_fcn();
 void *capture_thread(void *arg);
 void callback(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 
