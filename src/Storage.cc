@@ -18,10 +18,29 @@
 #define SNAPLEN 8192
 
 
-/***************************************************************************
- * callback handler for pcap_loop
- */
 
+void init_Hash_fcn()
+	{
+	init_H3();
+	}
+
+uint32_t hashword(
+const uint32_t *k,                   /* the key, an array of uint32_t values */
+size_t          length,               /* the length of the key, in uint32_ts */
+uint32_t        initval);         /* the previous hash, or an arbitrary value */
+/***************************************************************************
+ * callback handler for pcap_loop 
+ *
+ *
+ * args - (u_char*)storage arguement in the calling pcap_loop fcn and must
+ *           be casted back to a Storage type object and is then updated.
+ * header - struct pcap_pkthdr {
+ *		struct timeval ts;      // time stamp
+ *		bpf_u_int32 caplen;     // length of packet captured
+ *		bpf_u_int32 len;        // length of packet in full
+ *	    };
+ * packet - the full packet captured 
+ */
 void callback(u_char *args, const struct pcap_pkthdr *header,
 			  const u_char *packet) {
 	Storage *storage = (Storage *)args;
@@ -87,7 +106,9 @@ tot_num_queries(0) {
 
 	// Get pcap handle 
 	errbuf[0] = '\0';
-	if (!conf.readtracefile.empty()) {
+
+	/* choice whate file/device to read from depending on the configuration settings */
+	if (!conf.readtracefile.empty()) {              
 		ph = pcap_open_offline(conf.readtracefile.c_str(), errbuf);
 	}
 	else if (!conf.device.empty()) {
@@ -98,6 +119,7 @@ tot_num_queries(0) {
 		exit(1);
 	}
 
+
 	if (!ph) {
 		tmlog(TM_LOG_ERROR, "storage", "pcap_open failed: %s", errbuf);
 		exit(1);
@@ -105,7 +127,7 @@ tot_num_queries(0) {
 
 	//TODO: If strlen(errbuf)>0, then errbuf contains a WARNING!
 	//
-	
+	// compiles the filter
 	if (!conf.filter.empty()) {
 		char *filterstr = strdup(conf.filter.c_str());
 		if(pcap_compile(ph, &fp, filterstr, 0, 0)  < 0) {
@@ -224,7 +246,7 @@ void Storage::cancelThread() {
 void Storage::addPkt(const struct pcap_pkthdr *header,
 					 const unsigned char *packet) {
 	uint16_t ether_type=ntohs(ETHERNET(packet)->ether_type);
-	if ( ! (ether_type==ETHERTYPE_IP || ether_type==0x8100) ) {
+	if ( ! (ether_type==ETHERTYPE_IP || ether_type==0x8100 || ether_type==0x86dd) ) {
 		//    fprintf(stderr,"unknown ether_type 0x%.4X\n", ether_type);
 		return;
 	}
@@ -235,9 +257,17 @@ void Storage::addPkt(const struct pcap_pkthdr *header,
 	tm_time_t now = to_tm_time(&header->ts);
 
 	/* update connections state, classify, elephant cutoff */
+	/*******************************************************************************
+	 *	conns.addPkt is in Connections class which establishes a connection for the
+	 *	packet or returns the already established Connection
+	 *      this is done by creating a ConnectionID4 with the idxpacket 
+	********************************************************************************/
 	Connection* c=conns.addPkt(header, idxpacket);
+	/********************************************************************************/
 	Fifo *f=c->getFifo();
 	QueryResult *qr=c->getSubscription();
+	// all these next 2 if(!f) statements are doing is setting up the connection's
+	//    Fifo so that the following if(f) statement can add the packet raw data
 	if (!f) {
 		/* No class has been assigned so far. */
 
@@ -300,7 +330,8 @@ void Storage::addPkt(const struct pcap_pkthdr *header,
 	} // if (!f)
 	if (f) {
 		bool tcp_ctrl_flag=false;
-		if (IP(packet)->ip_p==IPPROTO_TCP)
+		uint32_t nxt_hdr = (IPV(packet) == IPv6) ? IP6_NXT_HDR(packet) : IP(packet)->ip_p;
+		if (nxt_hdr==IPPROTO_TCP)
 			if (TCP(packet)->th_flags & ( TH_FIN | TH_SYN | TH_RST ))
 				tcp_ctrl_flag=true;
 		if ( (( c->getSuspendCutoff() | tcp_ctrl_flag )
@@ -311,6 +342,8 @@ void Storage::addPkt(const struct pcap_pkthdr *header,
 			uncut_pkt_cnt++;
 
 			/* update indexes */
+		// the list is of size 0-4 for each of the types of indexes included in the .cfg file
+		// indexes is a list<IndexType*> wrapper class
 			for (std::list<IndexType*>::iterator i=indexes->begin();
 					i!=indexes->end();
 					i++) {
@@ -349,9 +382,10 @@ void Storage::debugPrint(FILE *fp) {
 	for (std::list<Fifo*>::iterator i=fifos.begin(); i!=fifos.end(); i++)
 		fprintf(fp, "%s totBytes: %"PRIu64"\n", (*i)->getClassname().c_str(),
 			   (*i)->getFm()->getTotPktbytes());
+	
 	for (std::list<IndexType*>::iterator i=indexes->begin();
-			i!=indexes->end();
-			i++) {
+			i!=indexes->end(); i++) 
+	{
 		//(*i)->lock();
 		fprintf(fp, "# %s index nodes RAM/Disk %"PRIu64" %"PRIu64"\n",
 			   (*i)->getIndexName().c_str(),
