@@ -39,6 +39,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 */
 
 #include <stdint.h>     /* defines uint32_t etc */
+#include <climits>
 
 /*
 --------------------------------------------------------------------
@@ -144,11 +145,8 @@ and these came close:
   b ^= a; b -= rot(a,14); \
   c ^= b; c -= rot(b,24); \
 }
+#include "H3.h"
 
-uint32_t hashword(
-const uint32_t *k,                   /* the key, an array of uint32_t values */
-size_t          length,               /* the length of the key, in uint32_ts */
-uint32_t        initval);         /* the previous hash, or an arbitrary value */
 
 /* A hacked down version of hashword by Gregor */
 inline uint32_t hash3words(uint32_t a, uint32_t b, uint32_t c, uint32_t initval) 
