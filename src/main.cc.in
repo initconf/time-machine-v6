@@ -34,7 +34,6 @@
 #endif
 
 #include "pcapnav/pcapnav.h"
-
 #include "conf.h"
 #include "types.h"
 
@@ -382,25 +381,25 @@ void *statisticslog_thread(void* arg) {
 	index_log_file = new LogFile(std::string("indexes.") + conf_main_logfile_name);
 
 	stats_log_file->logPlain(
-			"timestamp "
-			"conns "
-			"dyn_class "
-			"pcap_recv "
-			"pcap_drop "
-			"drop_ratio "
-			"d_drop "
-			"totPkts "
-			"totBytes "
-			"link_rate_mbit "
-			"uncutPkts "
-			"uncutBytes "
+			"timestamp       "
+			"conns           "
+			"dyn_class       "
+			"pcap_recv       "
+			"pcap_drop       "
+			"drop_ratio      "
+			"d_drop          "
+			"totPkts         "
+			"totBytes        "
+			"link_rate_mbit  "
+			"uncutPkts       "
+			"uncutBytes      "
 			"uncut_rate_mbit "
-			"utime "
-			"stime "
-			"mem_os "
-			"mem "
-			"queryPkts "
-			"queryBytes "
+			"utime           "
+			"stime           "
+			"mem_os          "
+			"mem             "
+			"queryPkts       "
+			"queryBytes      "
 			);
 	classes_log_file->logPlain(std::string("timestamp class ") + Fifo::getStatsStrHeader());
 
@@ -690,7 +689,7 @@ main(int argc, char** argv) {
 	 * start capture
 	 */
 
-
+	init_Hash_fcn();
 	pcapnav_init();
 
 	// Initialise cmd_parser
