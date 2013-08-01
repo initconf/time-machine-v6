@@ -10,6 +10,7 @@
 
 #include "types.h"
 #include "packet_headers.h"
+#include "tm.h"
 
 class IndexField;
 
@@ -61,20 +62,21 @@ public:
 
 class SrcIPAddress;
 class DstIPAddress;
-class IPAddress: public IndexField {
+class IPAddress: public IndexField {                 // IPAddress is-a IndexField
 public:
-	IPAddress(uint32_t ip): ip_address(ip) {}
-	IPAddress(const char* s): ip_address(inet_addr(s)) {}
+	IPAddress(const uint32_t ip): ip_address(IP6Address(ip)) {}
+	IPAddress(IP6Address ip): ip_address(ip) {}
+	IPAddress(const char* s): ip_address(IP6Address(s)) {}
 	IPAddress(void *p) {
 		memcpy((void*)getConstKeyPtr(), p, getKeySize());
 	}
 	virtual ~IPAddress() {};
 	virtual uint32_t hash() const {
 		// TODO: initval
-		return hash1words(ip_address, 0);
+		return ip_address.hash();
 	}
 	virtual uint32_t getInt() const {
-		return ip_address;
+		return 0;
 	}
 	virtual const char* getConstKeyPtr() const {
 		return (const char*)&ip_address;
@@ -102,14 +104,14 @@ public:
 	static IndexField* parseQuery(const char *query);
 	virtual void getBPFStr(char *, int) const;
 private:
-	uint32_t ip_address;
+	IP6Address ip_address;
 	static std::string pattern;
 	static RE2 re;
 };
 
 class SrcIPAddress: public IPAddress {
 public:
-	SrcIPAddress(uint32_t ip): IPAddress(ip) {}
+	SrcIPAddress(IP6Address ip): IPAddress(ip) {}
 	SrcIPAddress(const char* ip): IPAddress(ip) {}
 	SrcIPAddress(const u_char* packet);
 	static std::list<SrcIPAddress*> genKeys(const u_char* packet);
@@ -133,7 +135,7 @@ public:
 
 class DstIPAddress: public IPAddress {
 public:
-	DstIPAddress(uint32_t ip): IPAddress(ip) {}
+	DstIPAddress(IP6Address ip): IPAddress(ip) {}
 	DstIPAddress(const char* ip): IPAddress(ip) {}
 	DstIPAddress(const u_char* packet);
 	static std::list<DstIPAddress*> genKeys(const u_char* packet);
@@ -269,7 +271,6 @@ public:
 	virtual const char* getConstKeyPtr() const {
 		return (const char*)c_id.getConstV();
 	}
-	//  char* getKeyPtr() { return (char*)c_id.getV(); }
 	virtual const int getKeySize() const {
 		return sizeof(*c_id.getConstV());
 	}
@@ -337,6 +338,7 @@ public:
 	}
 	virtual const int getKeySize() const {
 		return sizeof(*c_id.getConstV());
+		//return c_id.getSizeVKey();
 	}
 	virtual const std::string getIndexName() const {
 		return "connection3";
@@ -406,6 +408,7 @@ public:
 	}
 	virtual const int getKeySize() const {
 		return sizeof(*c_id.getConstV());
+		//return c_id.getSizeVKey();
 	}
 	virtual const std::string getIndexName() const {
 		return "connection2";
