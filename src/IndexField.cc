@@ -1,3 +1,11 @@
+/* MAKING EDITS 
+ * pattern_ip6
+ * pattern_ip6port
+ */
+
+
+
+
 #ifndef INDEXFIELD_CC
 #define INDEXFIELD_CC
 
@@ -11,6 +19,8 @@
 #include "IndexField.hh"
 #include "tm.h"
 
+
+
 static std::string pattern_ip ("(\\d+\\.\\d+\\.\\d+\\.\\d+)");
 static std::string pattern_ipport ("(\\d+\\.\\d+\\.\\d+\\.\\d+):(\\d+)");
 
@@ -19,6 +29,16 @@ static std::string pattern_ipport ("(\\d+\\.\\d+\\.\\d+\\.\\d+):(\\d+)");
   3 dots, terminating nul byte */
 #define TM_IP_STR_SIZE 16
 static void ip_to_str(uint32_t ip, char *str, int len) {
+#define UCP(x) ((unsigned char *)&(x))
+	str[0] = '\0';
+	snprintf(str, len, "%d.%d.%d.%d",
+			 UCP(ip)[0] & 0xff,
+			 UCP(ip)[1] & 0xff,
+			 UCP(ip)[2] & 0xff,
+			 UCP(ip)[3] & 0xff);
+}
+
+static void ip_to_str(IP6Address ip, char *str, int len) {
 #define UCP(x) ((unsigned char *)&(x))
 	str[0] = '\0';
 	snprintf(str, len, "%d.%d.%d.%d",
@@ -57,24 +77,11 @@ std::list<IPAddress*> IPAddress::genKeys(const u_char* packet) {
 }
 
 void IPAddress::getStr(char* s, int maxsize) const {
-	unsigned char *ucp = (unsigned char *)&ip_address;
-
-	snprintf(s, maxsize, "%d.%d.%d.%d",
-			 ucp[0] & 0xff,
-			 ucp[1] & 0xff,
-			 ucp[2] & 0xff,
-			 ucp[3] & 0xff);
+	getStr().copy(s, maxsize);
 }
 
 std::string IPAddress::getStr() const {
-	unsigned char *ucp = (unsigned char *)&ip_address;
-	std::stringstream ss;
-	ss << (ucp[0] & 0xff) << "."
-	<< (ucp[1] & 0xff) << "."
-	<< (ucp[2] & 0xff) << "."
-	<< (ucp[3] & 0xff);
-
-	return ss.str();
+	return ip_address.AsURIString();
 }
 
 void IPAddress::getBPFStr(char *str, int max_str_len) const {
@@ -85,8 +92,9 @@ void IPAddress::getBPFStr(char *str, int max_str_len) const {
 }
 
 
-SrcIPAddress::SrcIPAddress(const u_char* packet):
-IPAddress(IP(packet)->ip_src.s_addr) {}
+SrcIPAddress::SrcIPAddress(const u_char* packet): 
+	IPAddress((IPV(packet) == IPv4) ? IP(packet)->ip_src.s_addr: 
+	IP6Address(IP6(packet)->ip6_src)) {}
 
 std::list<SrcIPAddress*> SrcIPAddress::genKeys(const u_char* packet) {
 	std::list<SrcIPAddress*> li;
@@ -103,7 +111,8 @@ void SrcIPAddress::getBPFStr(char *str, int max_str_len) const {
 
 
 DstIPAddress::DstIPAddress(const u_char* packet):
-IPAddress(IP(packet)->ip_dst.s_addr) {}
+	IPAddress((IPV(packet) == IPv4) ? IP(packet)->ip_dst.s_addr: 
+	IP6Address(IP6(packet)->ip6_dst)) {}
 
 std::list<DstIPAddress*> DstIPAddress::genKeys(const u_char* packet) {
 	std::list<DstIPAddress*> li;
@@ -266,19 +275,19 @@ void ConnectionIF4::getBPFStr(char *str, int max_str_len) const {
 	char d_ip_str[TM_IP_STR_SIZE];
 	uint32_t s_port;
 	uint32_t d_port;
-	/*
-	if (c_id.get_is_canonified()) {
-	  s_ip=c_id.get_ip2();
-	  d_ip=c_id.get_ip1();
-	  s_port=c_id.get_port2();
-	  d_port=c_id.get_port1();
-	} else {
-	*/
+	
+	//if (c_id.get_is_canonified()) {
+	//  s_ip=c_id.get_ip2();
+	//  d_ip=c_id.get_ip1();
+	//  s_port=c_id.get_port2();
+	//  d_port=c_id.get_port1();
+	//} else {
+	
 	ip_to_str(c_id.get_ip1(), s_ip_str, sizeof(s_ip_str));
 	ip_to_str(c_id.get_ip2(), d_ip_str, sizeof(d_ip_str));
 	s_port=c_id.get_port1();
 	d_port=c_id.get_port2();
-	/*  }  */
+	//  }  
 
 	snprintf(str, max_str_len,
 			 "host %s and port %d and host %s and port %d",
